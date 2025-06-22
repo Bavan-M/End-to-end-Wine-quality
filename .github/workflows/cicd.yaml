@@ -12,104 +12,101 @@ permissions:
   contents: read
 
 jobs:
-  # ---------- 🧪 CI: Test & Lint Code ---------- #
+
+  # -------- CI: Lint & Test -------- #
   ci:
     name: Continuous Integration
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
+      - name: 🧾 Checkout Code
         uses: actions/checkout@v3
 
-      - name: Set up Python
+      - name: 🐍 Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.8"
 
-      - name: Install Dependencies
+      - name: 📦 Install Dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Lint Code
-        run: echo "🔍 Linting Code" 
-        # Replace with your linter e.g. flake8 src/
+      - name: 🔍 Lint Code (mocked)
+        run: echo "Linting code..."  # Replace with: flake8 src/
 
-      - name: Run Tests
-        run: echo "✅ Running Tests"
-        # Replace with test runner e.g. pytest tests/
+      - name: ✅ Run Tests (mocked)
+        run: echo "Running tests..."  # Replace with: pytest tests/
 
-  # ---------- 🐳 CD: Build & Push Docker to ECR ---------- #
+  # -------- CD: Build & Push to ECR -------- #
   build-and-push:
-    name: Build and Push Docker Image
+    name: Build & Push Docker Image
     needs: ci
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
+      - name: 🧾 Checkout Code
         uses: actions/checkout@v3
 
-      - name: Install Docker Build Dependencies
+      - name: 🔧 Install Docker Utilities
         run: |
           sudo apt-get update -y
           sudo apt-get install -y jq unzip
 
-      - name: Configure AWS Credentials
+      - name: 🔐 Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Login to Amazon ECR
+      - name: 🔐 Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      - name: Build & Push Docker Image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY_NAME }}
-          IMAGE_TAG: latest
+      - name: 🐳 Build & Push Docker Image to ECR
         run: |
-          docker build --progress=plain -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          echo "::set-output name=image::${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+          echo "🔧 Registry: ${{ steps.login-ecr.outputs.registry }}"
+          echo "🔧 Repo:     ${{ secrets.ECR_REPOSITORY_NAME }}"
 
-  # ---------- 🚀 CD: Deploy on EC2 (Self-hosted) ---------- #
+          docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY_NAME }}:latest .
+          docker push ${{ steps.login-ecr.outputs.registry }}/${{ secrets.ECR_REPOSITORY_NAME }}:latest
+
+  # -------- CD: Deploy on EC2 (Self-hosted runner) -------- #
   deploy:
-    name: Deploy on EC2
+    name: Deploy to EC2
     needs: build-and-push
     runs-on: self-hosted
 
     steps:
-      - name: Checkout Code
+      - name: 🧾 Checkout Code
         uses: actions/checkout@v3
 
-      - name: Configure AWS Credentials
+      - name: 🔐 Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Login to Amazon ECR
+      - name: 🔐 Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-      - name: Pull Latest Docker Image from ECR
+      - name: 📥 Pull Latest Docker Image
         run: |
           docker pull ${{ secrets.AWS_ECR_LOGIN_URI }}/${{ secrets.ECR_REPOSITORY_NAME }}:latest
 
-      - name: Stop and Remove Existing Container (if running)
+      - name: 🧼 Stop and Remove Old Container (if running)
         run: |
-          docker ps -q --filter "name=cnncls" | grep -q . && docker stop cnncls && docker rm -fv cnncls || echo "No existing container"
+          docker ps -q --filter "name=cnncls" | grep -q . && docker stop cnncls && docker rm -fv cnncls || echo "No running container to stop."
 
-      - name: Run New Docker Container
+      - name: 🚀 Run New Docker Container
         run: |
           docker run -d -p 8080:8080 --name=cnncls \
             -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
             -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
             ${{ secrets.AWS_ECR_LOGIN_URI }}/${{ secrets.ECR_REPOSITORY_NAME }}:latest
 
-      - name: Clean Up Unused Docker Resources
+      - name: 🧹 Clean Up Docker Resources
         run: docker system prune -f
