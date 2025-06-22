@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Prediction Result</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/milligram/1.4.1/milligram.css">
+    <style>
+        body {
+            background-color: #fdf6f0;
+            padding: 50px;
+        }
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background-color: #fff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        h2 {
+            color: #9c3d3d;
+        }
+        .prediction {
+            font-size: 24px;
+            font-weight: bold;
+            margin-top: 20px;
+            color: #333;
+        }
+        a {
+            display: inline-block;
+            margin-top: 30px;
+            background-color: #9c3d3d;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        a:hover {
+            background-color: #722a2a;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Wine Quality Prediction Result</h2>
+    <p class="prediction">Predicted Quality: {{ prediction }}</p>
+    <a href="/">Back to Prediction Form</a>
+</div>
+
+</body>
+</html>
